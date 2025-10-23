@@ -126,11 +126,11 @@ st.subheader("La Invocación del Comando")
 
 # NOTA: La imagen 'voice_ctrl.jpg' debe estar disponible para cargarla.
 try:
-    image = Image.open('voice_ctrl.jpg')
+    image = Image.open('pin.png')
     st.image(image, width=200, caption="El Sello de la Cacería")
 except FileNotFoundError:
     st.markdown("---")
-    st.warning("⚠️ Sello Arcano ('voice_ctrl.jpg') no encontrado. Se necesita el icono de invocación.")
+    st.warning("⚠️ Sello Arcano ('pin.png') no encontrado. Se necesita el icono de invocación.")
 
 
 st.markdown("---")
