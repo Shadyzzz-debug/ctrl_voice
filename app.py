@@ -11,15 +11,15 @@ import json
 from gtts import gTTS
 from googletrans import Translator
 
-def on_publish(client,userdata,result):             #create function for callback
-    print("el dato ha sido publicado \n")
-    pass
+def on_publish(client,userdata,result):             #create function for callback
+    print("el dato ha sido publicado \n")
+    pass
 
 def on_message(client, userdata, message):
-    global message_received
-    time.sleep(2)
-    message_received=str(message.payload.decode("utf-8"))
-    st.write(message_received)
+    global message_received
+    time.sleep(2)
+    message_received=str(message.payload.decode("utf-8"))
+    st.write(message_received)
 
 broker="broker.mqttdashboard.com"
 port=1883
@@ -27,58 +27,70 @@ client1= paho.Client("GIT-HUBC")
 client1.on_message = on_message
 
 
-
+# --- Configuración de la Interfaz ---
 st.title("INTERFACES MULTIMODALES")
 st.subheader("CONTROL POR VOZ")
 
-image = Image.open('voice_ctrl.jpg')
-
-st.image(image, width=200)
-
-
+# NOTA: Para que esto funcione, la imagen 'voice_ctrl.jpg' debe estar disponible.
+# Si la imagen no carga, esta sección puede fallar.
+try:
+    image = Image.open('voice_ctrl.jpg')
+    st.image(image, width=200)
+except FileNotFoundError:
+    st.warning("⚠️ Imagen 'voice_ctrl.jpg' no encontrada. La aplicación continuará sin la imagen.")
 
 
 st.write("Toca el Botón y habla ")
 
+# --- Botón de Reconocimiento de Voz (utiliza Bokeh y Web Speech API) ---
 stt_button = Button(label=" Inicio ", width=200)
 
 stt_button.js_on_event("button_click", CustomJS(code="""
-    var recognition = new webkitSpeechRecognition();
-    recognition.continuous = true;
-    recognition.interimResults = true;
- 
-    recognition.onresult = function (e) {
-        var value = "";
-        for (var i = e.resultIndex; i < e.results.length; ++i) {
-            if (e.results[i].isFinal) {
-                value += e.results[i][0].transcript;
-            }
-        }
-        if ( value != "") {
-            document.dispatchEvent(new CustomEvent("GET_TEXT", {detail: value}));
-        }
-    }
-    recognition.start();
-    """))
+    var recognition = new webkitSpeechRecognition();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+ 
+    recognition.onresult = function (e) {
+        var value = "";
+        for (var i = e.resultIndex; i < e.results.length; ++i) {
+            if (e.results[i].isFinal) {
+                value += e.results[i][0].transcript;
+            }
+        }
+        if ( value != "") {
+            document.dispatchEvent(new CustomEvent("GET_TEXT", {detail: value}));
+        }
+    }
+    recognition.start();
+    """))
 
 result = streamlit_bokeh_events(
-    stt_button,
-    events="GET_TEXT",
-    key="listen",
-    refresh_on_update=False,
-    override_height=75,
-    debounce_time=0)
+    stt_button,
+    events="GET_TEXT",
+    key="listen",
+    refresh_on_update=False,
+    override_height=75,
+    debounce_time=0)
 
 if result:
-    if "GET_TEXT" in result:
-        st.write(result.get("GET_TEXT"))
-        client1.on_publish = on_publish                            
-        client1.connect(broker,port)  
-        message =json.dumps({"Act1":result.get("GET_TEXT").strip()})
-        ret= client1.publish("voice_ctrl", message)
+    if "GET_TEXT" in result:
+        transcribed_text = result.get("GET_TEXT")
+        st.write(transcribed_text)
+        
+        # --- Lógica de Publicación MQTT ---
+        client1.on_publish = on_publish                            
+        try:
+            client1.connect(broker,port) 
+            message = json.dumps({"Act1": transcribed_text.strip()})
+            ret = client1.publish("voice_ctrl", message)
+            st.success(f"Comando publicado al tópico 'voice_ctrl': {transcribed_text}")
+        except Exception as e:
+            st.error(f"Fallo al conectar o publicar a MQTT: {e}")
 
-    
-    try:
-        os.mkdir("temp")
-    except:
-        pass
+        # --- Creación de Directorio (Según el código original) ---
+        try:
+            os.mkdir("temp")
+        except FileExistsError:
+            pass
+        except Exception as e:
+            print(f"Error creando el directorio 'temp': {e}")
